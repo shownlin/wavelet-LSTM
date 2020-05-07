@@ -38,7 +38,7 @@ class wavelet_LSTM():
         self.test_date = self.test_X.pop('date', None)
         self.time_step = self.train_X.pop('time_step', None)
 
-    def train_test_loop(self, units=10, act_f=0, N_layer=1, lr=0.1, dropout=0.0, recurrent_dropout=0.0, epochs=600, batch_size=180):
+    def train_test_loop(self, units=10, act_f=0, N_layer=1, lr=0.1, dropout=0.0, recurrent_dropout=0.0, epochs=600, batch_size=180, save_model=False):
         '''
         model create
         '''
@@ -80,12 +80,14 @@ class wavelet_LSTM():
         model train
         '''
         if self.denoise:
-            get_best_model = ModelCheckpoint('model/pure_lstm_denoise_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
+            get_best_model = ModelCheckpoint('model/checkpoint/pure_lstm_denoise_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
         else:
-            get_best_model = ModelCheckpoint('model/pure_lstm_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
+            get_best_model = ModelCheckpoint('model/checkpoint/pure_lstm_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=50, factor=0.5, mode='auto', verbose=1)
         hLS = model.fit(inputTrain_X, inputTrain_Y, validation_data=(inputTest_X, inputTest_Y), epochs=epochs, batch_size=batch_size, callbacks=[reduce_lr, get_best_model], verbose=2)
 
+        if save_model:
+            model.save('model/pure_lstm_{}.h5'.format(self.wavelet))
         '''
         price predict
         '''

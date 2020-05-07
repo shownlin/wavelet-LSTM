@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from keras.models import Sequential, Model
-from keras.layers import LSTM, Dense, Concatenate, TimeDistributed, Flatten, Input, Dropout, BatchNormalization
+from keras.layers import LSTM, Dense, Concatenate, TimeDistributed, Flatten, Input, Dropout, BatchNormalization, Activation
 from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from lib.attention2 import Attention
@@ -39,16 +39,16 @@ class pure_LSTM():
         self.test_date = self.test_X.pop('date', None)
         self.time_step = self.train_X.pop('time_step', None)
 
-    def train_test(self, units=10, act_f=0, N_layer=1, lr=0.1, dropout=0.0, recurrent_dropout=0.0, epochs=600, batch_size=160):
+    def train_test(self, units=10, act_f=0, N_layer=1, lr=0.1, dropout=0.0, recurrent_dropout=0.0, epochs=600, batch_size=160, save_model=False):
         '''
         model create
         '''
         model_input = []
         model_output = []
         for _key in self.train_X.keys():
-            i = Input(shape=(self.time_step, 1))
+            x = i = Input(shape=(self.time_step, 1))
             for _layer in range(N_layer):
-                x = LSTM(units=units,  activation='tanh', dropout=dropout, recurrent_dropout=recurrent_dropout, return_sequences=True)(i)
+                x = LSTM(units=units,  activation='tanh', dropout=dropout, recurrent_dropout=recurrent_dropout, return_sequences=True)(x)
             # Apply a single dense layer to all timesteps of the resulting sequence to convert back to prices
             x = Attention(self.time_step)(x)
             # x = Dropout(0.2)(x)
@@ -58,8 +58,9 @@ class pure_LSTM():
 
         x = Concatenate()(model_output)
         x = BatchNormalization()(x)
-        x = Dense(32, activation="relu")(x)
+        x = Dense(32)(x)
         x = BatchNormalization()(x)
+        x = Activation(activation='relu')(x)
         x = Dropout(0.2)(x)
         x = Dense(1)(x)
         model = Model(model_input, x)
@@ -84,12 +85,14 @@ class pure_LSTM():
         model train
         '''
         if self.denoise:
-            get_best_model = ModelCheckpoint('./model/attention_2_denoise_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
+            get_best_model = ModelCheckpoint('./model/checkpoint/attention_2_denoise_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
         else:
-            get_best_model = ModelCheckpoint('./model/attention_2_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
+            get_best_model = ModelCheckpoint('./model/checkpoint/attention_2_{}.h5'.format(self.wavelet), monitor='val_loss', save_best_only=True)
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', patience=30, factor=0.5, mode='auto', verbose=1)
         hLS = model.fit(inputTrain_X, inputTrain_Y, validation_data=(inputTest_X, inputTest_Y), epochs=epochs, batch_size=batch_size, callbacks=[reduce_lr, get_best_model], verbose=2)
 
+        if save_model:
+            model.save('./model/attention_2_{}.h5'.format(self.wavelet))
         '''
         price predict
         '''

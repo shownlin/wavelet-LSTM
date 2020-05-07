@@ -9,7 +9,7 @@ orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
 features = ['open', 'high', 'low', 'close', 'volume', 'adj_close']
-time_steps = 64
+time_steps = 16
 train_size = int(df.shape[0] * 0.94)
 test_size = df.shape[0] - train_size - time_steps
 max_imf = 2
@@ -22,7 +22,7 @@ def to_emd():
         data = pickle.load(f)
     '''
     for feature in features:
-        save_file = Path('./EMD/{}_imf_list.pkl'.format(feature))
+        save_file = Path('./EMD_{}/{}_imf_list.pkl'.format(time_steps, feature))
         result = list()
         for i in range(df.shape[0] - time_steps):
             cur_time = dates[i:i+time_steps].copy().reset_index(drop=True)
@@ -44,7 +44,7 @@ def create_dataset():
 
     load_data = dict()
     for feature in features:
-        read_file = Path('./EMD/{}_imf_list.pkl'.format(feature))
+        read_file = Path('./EMD_{}/{}_imf_list.pkl'.format(time_steps, feature))
         with open(read_file, 'rb') as f:
             load_data[feature] = pickle.load(f)
 
@@ -70,7 +70,7 @@ def create_dataset():
         for i in range(max_imf+1):
             train_data['{}_{}'.format(feature, i + 1)] = np.array(train_data['{}_{}'.format(feature, i + 1)])
 
-    train_file = Path('./EMD/train.pkl')
+    train_file = Path('./EMD_{}/train.pkl'.format(time_steps))
     with open(train_file, 'wb') as f:
         pickle.dump(train_data, f)
 
@@ -95,7 +95,67 @@ def create_dataset():
         for i in range(max_imf+1):
             test_data['{}_{}'.format(feature, i + 1)] = np.array(test_data['{}_{}'.format(feature, i + 1)])
 
-    test_file = Path('./EMD/test.pkl')
+    test_file = Path('./EMD_{}/test.pkl'.format(time_steps))
+    with open(test_file, 'wb') as f:
+        pickle.dump(test_data, f)
+
+
+def create_dataset_binary():
+
+    load_data = dict()
+    for feature in features:
+        read_file = Path('./EMD_{}/{}_imf_list.pkl'.format(time_steps, feature))
+        with open(read_file, 'rb') as f:
+            load_data[feature] = pickle.load(f)
+
+    # training set
+    train_data = dict()
+    train_data['time_step'] = time_steps
+    train_data['date'] = dates[time_steps:train_size + time_steps].values
+    train_data['y'] = np.sign(np.diff(df['close'][time_steps-1:train_size + time_steps].values)).astype(int)
+    for feature in features:
+        for i in range(max_imf+1):
+            train_data['{}_{}'.format(feature, i+1)] = list()
+
+        for i in range(train_size):
+            insuf = max_imf - load_data[feature][i].shape[1] + 2
+            for j in range(insuf):
+                train_data['{}_{}'.format(feature, j+1)].append(np.zeros(time_steps))
+
+            residue = insuf+1
+            for c in load_data[feature][i].columns[1:]:
+                train_data['{}_{}'.format(feature, residue)].append(load_data[feature][i][c].values)
+                residue += 1
+
+        for i in range(max_imf+1):
+            train_data['{}_{}'.format(feature, i + 1)] = np.array(train_data['{}_{}'.format(feature, i + 1)])
+
+    train_file = Path('./EMD_{}/train_binary.pkl'.format(time_steps))
+    with open(train_file, 'wb') as f:
+        pickle.dump(train_data, f)
+
+    # testing set
+    test_data = dict()
+    test_data['date'] = dates[train_size + time_steps:].values
+    test_data['y'] = np.sign(np.diff(df['close'][train_size-1 + time_steps:].values)).astype(int)
+    for feature in features:
+        for i in range(max_imf+1):
+            test_data['{}_{}'.format(feature, i+1)] = list()
+
+        for i in range(test_size):
+            insuf = max_imf - load_data[feature][i + train_size].shape[1] + 2
+            for j in range(insuf):
+                test_data['{}_{}'.format(feature, j+1)].append(np.zeros(time_steps))
+
+            residue = insuf+1
+            for c in load_data[feature][i + train_size].columns[1:]:
+                test_data['{}_{}'.format(feature, residue)].append(load_data[feature][i + train_size][c].values)
+                residue += 1
+
+        for i in range(max_imf+1):
+            test_data['{}_{}'.format(feature, i + 1)] = np.array(test_data['{}_{}'.format(feature, i + 1)])
+
+    test_file = Path('./EMD_{}/test_binary.pkl'.format(time_steps))
     with open(test_file, 'wb') as f:
         pickle.dump(test_data, f)
 
@@ -110,7 +170,8 @@ if __name__ == "__main__":
     '''
 
     # compute and save emd result
-    to_emd()
+    # to_emd()
 
     # create training set and data set by day
     create_dataset()
+    create_dataset_binary()
