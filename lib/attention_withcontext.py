@@ -115,9 +115,6 @@ class AttentionWithContext(Layer):
 
     def get_config(self):
         config = {
-            'supports_masking': self.supports_masking,
-            'init': self.init,
-
             'W_regularizer': self.W_regularizer,
             'u_regularizer': self.u_regularizer,
             'b_regularizer': self.b_regularizer,

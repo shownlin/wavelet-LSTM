@@ -66,8 +66,6 @@ class AttentionWeightedAverage(Layer):
 
     def get_config(self):
         config = {
-            'init': self.init,
-            'supports_masking': self.supports_masking,
             'return_attention': self.return_attention,
         }
         base_config = super(AttentionWeightedAverage, self).get_config()

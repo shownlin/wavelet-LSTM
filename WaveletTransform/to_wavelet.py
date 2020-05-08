@@ -9,11 +9,11 @@ orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
 features = ['open', 'high', 'low', 'close', 'volume', 'adj_close']
-time_steps = 64
 train_size = int(df.shape[0] * 0.94)
+time_steps = 64
 test_size = df.shape[0] - train_size - time_steps
 max_level = 3
-wavelet = ['coif3', 'db3', 'haar', 'sym3'][3]
+wavelet = ['coif3', 'db3', 'haar', 'sym3'][0]
 
 
 def to_wavelet():
@@ -145,7 +145,7 @@ def create_dataset_binary():
     train_data = dict()
     train_data['time_step'] = time_steps
     train_data['date'] = dates[time_steps:train_size + time_steps].values
-    train_data['y'] = np.sign(np.diff(df['close'][time_steps-1:train_size + time_steps].values)).astype(int)
+    train_data['y'] = np.sign(np.diff(df['close'][time_steps - 1:train_size + time_steps].values)).astype(int)
     for feature in features:
         for i in range(max_level+1):
             train_data['{}_{}'.format(feature, i+1)] = list()
@@ -245,5 +245,5 @@ if __name__ == "__main__":
     # # create training set and data set by day
     # create_dataset()
     # create_dataset_denoise()
-    create_dataset_binary()
+    # create_dataset_binary()
     create_dataset_denoise_binary()
