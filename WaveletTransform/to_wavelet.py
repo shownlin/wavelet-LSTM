@@ -9,11 +9,11 @@ orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
 features = ['open', 'high', 'low', 'close', 'volume', 'adj_close']
-train_size = int(df.shape[0] * 0.94)
+train_size = int(df.shape[0] * 0.95)
 time_steps = 64
 test_size = df.shape[0] - train_size - time_steps
 max_level = 3
-wavelet = ['coif3', 'db3', 'haar', 'sym3'][0]
+# wavelet = ['coif3', 'db3', 'haar', 'sym3'][0]
 
 
 def to_wavelet():
@@ -239,11 +239,13 @@ if __name__ == "__main__":
         b = pickle.load(f)
     '''
 
-    # # compute and save emd result
-    # to_wavelet()
+    for wavelet in ['coif3', 'db3', 'haar', 'sym3']:
 
-    # # create training set and data set by day
-    # create_dataset()
-    # create_dataset_denoise()
-    # create_dataset_binary()
-    create_dataset_denoise_binary()
+        # compute and save emd result
+        to_wavelet()
+
+        # create training set and data set by day
+        create_dataset()
+        create_dataset_denoise()
+        create_dataset_binary()
+        create_dataset_denoise_binary()

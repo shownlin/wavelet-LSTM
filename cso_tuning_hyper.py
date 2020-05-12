@@ -20,15 +20,15 @@ def fittness(x):
 
 def fittness_binary(x):
     model = opt_binary_LSTM(denoise=False, wavelet=wavelet, plot=False)
-    return model.train_test(bidirect=int(x[0]), rec_layer=int(x[1]), lstm_l1=x[2], lstm_l2=x[3], lstm_units=int(x[4]), lstm_act_f=int(x[5]), lstm_layer=int(x[6]), lstm_dropout=x[7], lstm_recurrent_dropout=x[8], att=int(x[9]),
-                            dense_l1=x[10], dense_l2=x[11], dense_unit=int(x[12]), dense_layer=int(x[13]), dense_act_f=int(x[14]), dense_drop=x[15], BatchNorm=int(x[16]), batch_size=int(x[17]), epochs=1000, save_model=True)
+    return model.train_test(bidirect=int(x[0]), rec_layer=int(x[1]), lstm_l2=x[2], lstm_units=int(x[3]), lstm_layer=int(x[4]), lstm_dropout=x[5], lstm_recurrent_dropout=x[6], att=int(x[7]),
+                            dense_l2=x[8], dense_unit=int(x[9]), dense_layer=int(x[10]), dense_act_f=int(x[11]), dense_drop=x[12], BatchNorm=int(x[13]), batch_size=int(x[14]), epochs=1000, save_model=True)
 
 
 '''
 def __init__(self, denoise=None, wavelet='OriginData', plot=True):
 def train_test(self, bidirect=True, rec_layer=0, lstm_l1=1e-5, lstm_l2=1e-5, lstm_units=100, lstm_layer=1, lstm_act_f=0, lstm_dropout=0.0, lstm_recurrent_dropout=0.0, att=0,
-                dense_l1=1e-5, dense_l2=1e-5, dense_unit=32, dense_layer=1, dense_act_f=0,  dense_drop=0.0, batch_size=160, epochs=1000, save_model=False):
-[bidirect, rec_layer, lstm_l1, lstm_l2, lstm_units, lstm_act_f, lstm_layer, lstm_dropout, lstm_recurrent_dropout, att, dense_l1, dense_l2, dense_unit, dense_layer, dense_act_f, dense_drop, batch_size]
+                dense_l1=1e-5, dense_l2=1e-5, dense_unit=32, dense_layer=1, dense_act_f=0, dense_drop=0.0, BatchNorm=True, batch_size=160, epochs=600, save_model=False):
+[bidirect, rec_layer, lstm_l1, lstm_l2, lstm_units, lstm_act_f, lstm_layer, lstm_dropout, lstm_recurrent_dropout, att, dense_l1, dense_l2, dense_unit, dense_layer, dense_act_f, dense_drop, BatchNorm, batch_size]
 '''
 
 if minimize:
@@ -36,9 +36,9 @@ if minimize:
               [512, 2, 4, 0.3, 0.3, 4, 64, 10, 5,  0.3, 300],
               11, 30, pa=0.25, nest=50, discrete=[True, True, True, False, False, True, True, True, True, False, True])
 else:
-    alh = cso(wavelet, 10, fittness_binary, [0, 0, 0, 0, 64, 0, 1, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 80],
-              [1, 1, 1e-4, 1e-4, 256, 5, 3, 0.3, 0.3, 4, 1e-4, 1e-4, 128, 3, 5,  0.3, 1, 500],
-              18, 30, pa=0.25, nest=50, discrete=[True, True, False, False, True, True, True, False, False, True, False, False, True, True, True, False, True, True], minimize=minimize)
+    alh = cso(wavelet, 10, fittness_binary, [0, 0, 0, 64, 1, 0, 0, 0, 0, 8, 0, 0, 0, 0, 80],
+              [1, 1,  1e-3/2, 256, 3, 0.3, 0.3, 4, 1e-3/2, 128, 3, 3,  0.3, 1, 500],
+              15, 30, pa=0.25, nest=50, discrete=[True, True, False, True, True, False, False, True, False, True, True, True, False, True, True], minimize=minimize)
 
 if minimize:
     save_log = Path('./log/price/{}'.format(wavelet))

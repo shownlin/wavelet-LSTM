@@ -1,0 +1,30 @@
+fitness=0
+denoise=1.0, lstm_units=1.0, lstm_act_f=6.999684986528422e-05,  lstm_layer=170.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.1751722420762089, dense_unit=0.12525066846220959, dense_layer=1.0, dense_act_f=7.619164689924372e-05, dense_drop=12.0, batch_size=2.0
+
+fitness=0
+denoise=1.0, lstm_units=1.0, lstm_act_f=6.999684986528422e-05,  lstm_layer=170.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.1751722420762089, dense_unit=0.12525066846220959, dense_layer=1.0, dense_act_f=7.619164689924372e-05, dense_drop=12.0, batch_size=2.0
+
+fitness=0
+denoise=1.0, lstm_units=1.0, lstm_act_f=6.999684986528422e-05,  lstm_layer=170.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.1751722420762089, dense_unit=0.12525066846220959, dense_layer=1.0, dense_act_f=7.619164689924372e-05, dense_drop=12.0, batch_size=2.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+
+fitness=0
+denoise=0.0, lstm_units=0.0, lstm_act_f=0.00012054090511501065,  lstm_layer=108.0, lstm_dropout=2.0, lstm_recurrent_dropout=3.0, att=0.004127733264012367, dense_unit=0.15181581187591323, dense_layer=3.0, dense_act_f=7.806382934958772e-05, dense_drop=79.0, batch_size=3.0
+

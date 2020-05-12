@@ -9,8 +9,8 @@ orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
 features = ['open', 'high', 'low', 'close', 'volume', 'adj_close']
-time_steps = 16
-train_size = int(df.shape[0] * 0.94)
+time_steps = 64
+train_size = int(df.shape[0] * 0.95)
 test_size = df.shape[0] - train_size - time_steps
 max_imf = 2
 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     '''
 
     # compute and save emd result
-    # to_emd()
+    to_emd()
 
     # create training set and data set by day
     create_dataset()

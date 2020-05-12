@@ -41,7 +41,7 @@ class cso(sw):
     Cuckoo Search Optimization
     """
 
-    def __init__(self, wavelet, n, function, lb, ub, dimension, iteration, pa=0.25,
+    def __init__(self, wavelet, n, function, lb, ub, dimension, iterations, pa=0.25,
                  nest=100, discrete=None, minimize=True):
         """
         :param n: number of agents
@@ -49,7 +49,7 @@ class cso(sw):
         :param lb: int or array-like, lower limits for plot axes
         :param ub: int or array-like, upper limits for plot axes
         :param dimension: space dimension
-        :param iteration: number of iterations
+        :param iterations: number of iterations
         :param pa: probability of cuckoo's egg detection (default value is 0.25)
         :param nest: number of nests (default value is 100)
         :param discrete: None or or array-like (default value is None), indicate that some parameters are discrete
@@ -88,8 +88,8 @@ class cso(sw):
 
         self._points(self.__agents)
 
-        for _ in range(iteration):
-
+        for iteration in range(iterations):
+            print('iteration: %d' % iteration)
             _agents_fitness = np.array([function(x) for x in self.__agents])
 
             for i in range(n):

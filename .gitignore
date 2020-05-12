@@ -1,1 +1,8 @@
-model/
+model/checkpoint/*
+model/for_opt/*
+**/*adj_close*_*list*
+**/*close*_*list*
+**/*high*_*list*
+**/*low*_*list*
+**/*open*_*list*
+**/*volume*_*list*
