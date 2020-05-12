@@ -37,7 +37,7 @@ if minimize:
               11, 30, pa=0.25, nest=50, discrete=[True, True, True, False, False, True, True, True, True, False, True])
 else:
     alh = cso(wavelet, 10, fittness_binary, [0, 0, 0, 64, 1, 0, 0, 0, 0, 8, 0, 0, 0, 0, 80],
-              [1, 1,  1e-3/2, 256, 3, 0.3, 0.3, 4, 1e-3/2, 128, 3, 3,  0.3, 1, 500],
+              [1, 1,  1e-3/2, 256, 3, 0.25, 0.25, 4, 1e-3/2, 128, 3, 3,  0.25, 1, 500],
               15, 30, pa=0.25, nest=50, discrete=[True, True, False, True, True, False, False, True, False, True, True, True, False, True, True], minimize=minimize)
 
 if minimize:

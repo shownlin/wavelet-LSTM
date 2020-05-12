@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from keras.models import Sequential, Model, load_model
-from keras.layers import GRU, LSTM, Dense, Concatenate, TimeDistributed, Flatten, Input, Dropout, BatchNormalization, Activation, Bidirectional
+from keras.layers import GRU, LSTM, Dense, Concatenate, TimeDistributed, Flatten, Input, Dropout, BatchNormalization, Activation, Bidirectional, LeakyReLU
 from keras.optimizers import Adam
 from keras.regularizers import l2
 from keras.callbacks import ReduceLROnPlateau
@@ -16,6 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score
 from pathlib import Path
 import pickle
+from keras import backend as K
 
 
 class opt_binary_LSTM():
@@ -88,19 +89,23 @@ class opt_binary_LSTM():
             model_output += [m.output]
 
         x = Concatenate()(model_output)
-        dense_act_f = ['relu', 'selu', 'tanh', 'elu'][dense_act_f]
+        dense_act_f = ['relu', 'selu', 'tanh', 'elu', 'leakyrelu'][dense_act_f]
         dense_reg = l2(dense_l2)
         for _layer in range(dense_layer):
             x = Dense(dense_unit, kernel_regularizer=dense_reg)(x)
             if BatchNorm:
                 x = BatchNormalization()(x)
-            x = Activation(activation=dense_act_f)(x)
+            if dense_act_f == 'leakyrelu':
+                x = LeakyReLU(alpha=0.1)(x)
+            else:
+                x = Activation(activation=dense_act_f)(x)
             if dense_drop > 0:
                 x = Dropout(dense_drop)(x)
         x = Dense(1, activation='sigmoid')(x)
         model = Model(model_input, x)
         model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.001, clipnorm=1.), metrics=['accuracy'])
-        print('{} n_layer: {}, l2={:.8f}\tDense activation: {}, l2={:.8f}'.format(rec_layer, lstm_layer, lstm_l2, dense_act_f, dense_l2))
+        print('{} {} n_layer={}, l2={:.8f}\tDense activation: {}, l2={:.8f}, dropout=[{:.4f}, {:.4f}, {:.4f}]'.format(
+            self.wavelet, rec_layer, lstm_layer, lstm_l2, dense_act_f, dense_l2, lstm_dropout, lstm_recurrent_dropout, dense_drop))
 
         '''
         input data create & normalization
@@ -128,8 +133,9 @@ class opt_binary_LSTM():
         '''
         Downsample Majority Class To Match Minority Class
         '''
-        cls1_idx = np.random.choice(np.where(inputTest_Y == 1)[0], size=len(np.where(inputTest_Y == 0)[0]))
-        cls0_idx = np.where(inputTest_Y == 0)[0]
+        resample_size = len(np.where(inputTest_Y == 0)[0])-20
+        cls1_idx = np.random.choice(np.where(inputTest_Y == 1)[0], size=resample_size)
+        cls0_idx = np.random.choice(np.where(inputTest_Y == 0)[0], size=resample_size)
         down_idx = np.hstack((cls1_idx, cls0_idx))
         np.random.shuffle(down_idx)
         validTest_X = list()
@@ -151,7 +157,10 @@ class opt_binary_LSTM():
         reduce_lr = ReduceLROnPlateau(monitor='accuracy', patience=30, factor=0.8, mode='auto', verbose=1)
         hLS = model.fit(inputTrain_X, inputTrain_Y, validation_data=(validTest_X, validTest_Y), class_weight=class_weight,
                         epochs=epochs, batch_size=batch_size, callbacks=[reduce_lr, get_best_model], verbose=2)
+
         if not get_best_model.valid:
+            del model
+            K.clear_session()
             return 0
 
         '''
@@ -218,6 +227,9 @@ class opt_binary_LSTM():
         save_file = save_dir / '{}.h5'.format(acc_out)
         if save_model:
             model.save(save_file)
+
+        del model
+        K.clear_session()
 
         return acc_out
 

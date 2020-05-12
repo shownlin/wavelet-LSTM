@@ -29,22 +29,22 @@ class CustomCheckpoint(Callback):
             train_acc = logs.get('accuracy')
             if np.greater(train_acc, self.train_best):
                 self.train_best = train_acc
+            current = logs.get(self.monitor)
+            if np.greater(current, self.best):
+                self.best = current
             if np.greater(self.train_best, self.baseline * 1.05):
                 if self.save_best_only:
-                    current = logs.get(self.monitor)
                     if np.greater(self.train_best, current):
                         if current is None:
                             warnings.warn('Can save best model only with %s available, '
                                           'skipping.' % (self.monitor), RuntimeWarning)
                         else:
-                            if np.greater(current, self.best):
-                                self.best = current
-                                if self.save_weights_only:
-                                    self.model.save_weights(filepath, overwrite=True)
-                                    self.valid = True
-                                else:
-                                    self.model.save(filepath, overwrite=True)
-                                    self.valid = True
+                            if self.save_weights_only:
+                                self.model.save_weights(filepath, overwrite=True)
+                                self.valid = True
+                            else:
+                                self.model.save(filepath, overwrite=True)
+                                self.valid = True
                 else:
                     if self.save_weights_only:
                         self.model.save_weights(filepath, overwrite=True)
