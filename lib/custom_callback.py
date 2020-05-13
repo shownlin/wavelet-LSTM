@@ -32,9 +32,8 @@ class CustomCheckpoint(Callback):
             current = logs.get(self.monitor)
             if np.greater(current, self.best):
                 self.best = current
-            if np.greater(self.train_best, self.baseline * 1.05):
                 if self.save_best_only:
-                    if np.greater(self.train_best, current):
+                    if np.greater(self.train_best, self.baseline * 1.05) and np.greater(self.train_best, current):
                         if current is None:
                             warnings.warn('Can save best model only with %s available, '
                                           'skipping.' % (self.monitor), RuntimeWarning)

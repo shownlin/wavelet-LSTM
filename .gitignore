@@ -1,5 +1,5 @@
-model/checkpoint/*
-model/for_opt/*
+model/checkpoint/*.h5
+model/for_opt/*/*.h5
 **/*adj_close*_*list*
 **/*close*_*list*
 **/*high*_*list*
