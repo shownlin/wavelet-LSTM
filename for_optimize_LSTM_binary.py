@@ -57,7 +57,7 @@ class opt_binary_LSTM():
         if (not self.denoise) and ('pure' not in self.wavelet):
             n_lstm //= 6
         for _key in range(n_lstm):
-            x = i = Input(shape=(self.time_step, 1)) if self.denoise else Input(shape=(self.time_step, 6))
+            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, 6))
             for _layer in range(lstm_layer - 1):
                 if bidirect:
                     x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg,
@@ -87,7 +87,6 @@ class opt_binary_LSTM():
             m = Model(i, x)
             model_input += [m.input]
             model_output += [m.output]
-
         x = Concatenate()(model_output)
         dense_act_f = ['relu', 'selu', 'tanh', 'elu', 'leakyrelu'][dense_act_f]
         dense_reg = l2(dense_l2)
