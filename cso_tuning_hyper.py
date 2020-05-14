@@ -19,9 +19,14 @@ def fittness(x):
 
 
 def fittness_binary(x):
-    model = opt_binary_LSTM(denoise=False, wavelet=wavelet, plot=False)
-    return model.train_test(bidirect=int(x[0]), rec_layer=int(x[1]), lstm_l2=x[2], lstm_units=int(x[3]), lstm_layer=int(x[4]), lstm_dropout=x[5], lstm_recurrent_dropout=x[6], att=int(x[7]),
-                            dense_l2=x[8], dense_unit=int(x[9]), dense_layer=int(x[10]), dense_act_f=int(x[11]), dense_drop=x[12], BatchNorm=int(x[13]), batch_size=int(x[14]), epochs=1000, save_model=True)
+    try:
+        model = opt_binary_LSTM(denoise=False, wavelet=wavelet, plot=False)
+        return model.train_test(bidirect=int(x[0]), rec_layer=int(x[1]), lstm_l2=x[2], lstm_units=int(x[3]), lstm_layer=int(x[4]), lstm_dropout=x[5], lstm_recurrent_dropout=x[6], att=int(x[7]),
+                                dense_l2=x[8], dense_unit=int(x[9]), dense_layer=int(x[10]), dense_act_f=int(x[11]), dense_drop=x[12], BatchNorm=int(x[13]), batch_size=int(x[14]), epochs=1000, save_model=True)
+    except KeyboardInterrupt:
+        print("W: interrupt received, stopping…")
+    except:
+        return 0
 
 
 '''
@@ -37,7 +42,7 @@ if minimize:
               11, 30, pa=0.25, nest=50, discrete=[True, True, True, False, False, True, True, True, True, False, True])
 else:
     alh = cso(wavelet, 10, fittness_binary, [0, 0, 0, 64, 1, 0, 0, 0, 0, 8, 0, 0, 0, 0, 80],
-              [1, 1,  1e-3/2, 256, 3, 0.25, 0.25, 4, 1e-3/2, 128, 3, 3,  0.25, 1, 500],
+              [1, 1,  1e-3/2, 256, 3, 0.25, 0.25, 4, 1e-3/2, 128, 3, 3,  0.25, 1, 400],
               15, 30, pa=0.25, nest=50, discrete=[True, True, False, True, True, False, False, True, False, True, True, True, False, True, True], minimize=minimize)
 
 if minimize:
