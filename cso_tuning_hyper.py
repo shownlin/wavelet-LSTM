@@ -25,6 +25,7 @@ def fittness_binary(x):
                                 dense_l2=x[8], dense_unit=int(x[9]), dense_layer=int(x[10]), dense_act_f=int(x[11]), dense_drop=x[12], BatchNorm=int(x[13]), batch_size=int(x[14]), epochs=1000, save_model=True)
     except KeyboardInterrupt:
         print("W: interrupt received, stopping…")
+        raise
     except:
         return 0
 
