@@ -1,0 +1,3 @@
+fitness=0
+bidirect=1.0, rec_layer=1.0, lstm_l2=6.437788335691291e-05, lstm_units=216.0, lstm_layer=2.0, lstm_dropout=0.13862506390631874, lstm_recurrent_dropout=0.09152592150782618, att=2.0, dense_l2=0.0002686903713141796, dense_unit=92.0, dense_layer=1.0, dense_act_f=2.0, dense_drop=0.07452999355676296, BatchNorm=1.0, batch_size=198.0
+

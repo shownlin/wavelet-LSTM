@@ -9,9 +9,9 @@ orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
 features = ['open', 'high', 'low', 'close', 'volume', 'adj_close']
-time_steps = 64
-train_size = int(df.shape[0] * 0.95)
-test_size = df.shape[0] - train_size - time_steps
+time_steps = 20
+test_size = 250
+train_size = df.shape[0] - test_size
 max_imf = 2
 
 
@@ -160,6 +160,96 @@ def create_dataset_binary():
         pickle.dump(test_data, f)
 
 
+def create_dataset_multiclass(hold_days=5):
+    '''
+        lebel:
+            0 -> long 做多
+            1 -> short 做空
+            2 -> nop_up 不動作，但股票漲
+            3 -> nop_down 不動作，但股票跌
+
+        return rate:
+            spread[i] = open[i] - close[i + hold_days]
+    '''
+
+    _open, _close = df['open'].values[:-(hold_days-1)], np.roll(df['close'].values, -(hold_days-1))[:-(hold_days-1)]
+    fee = (_open * 1.425 * 1e-3 + _close * 4.425 * 1e-3)
+    long = (_close - _open) - fee > 0
+    short = (_open - _close) - fee > 0
+    nop_up = ~(long | short) & (_close > _open)
+    nop_down = ~(long | short) & (_open > _close)
+    acts = [long, short, nop_up, nop_down]
+
+    load_data = dict()
+    for feature in features:
+        read_file = Path('./EMD_{}/{}_imf_list.pkl'.format(time_steps, feature))
+        with open(read_file, 'rb') as f:
+            load_data[feature] = pickle.load(f)
+
+    # training set
+    train_data = dict()
+    train_data['time_step'] = time_steps
+    train_data['date'] = dates[time_steps:train_size].values
+    train_data['y'] = np.zeros(train_size - time_steps, dtype=int)
+    train_data['spread_long'] = ((_close - _open) - fee)[time_steps:train_size]
+    train_data['spread_short'] = ((_open - _close) - fee)[time_steps:train_size]
+
+    for i, act in enumerate(acts):
+        train_data['y'][act[time_steps:train_size]] = i
+
+    for feature in features:
+        for i in range(max_imf+1):
+            train_data['{}_{}'.format(feature, i+1)] = list()
+
+        for i in range(train_size - time_steps):
+            insuf = max_imf - load_data[feature][i].shape[1] + 2
+            for j in range(insuf):
+                train_data['{}_{}'.format(feature, j+1)].append(np.zeros(time_steps))
+
+            residue = insuf+1
+            for c in load_data[feature][i].columns[1:]:
+                train_data['{}_{}'.format(feature, residue)].append(load_data[feature][i][c].values)
+                residue += 1
+
+        for i in range(max_imf+1):
+            train_data['{}_{}'.format(feature, i + 1)] = np.array(train_data['{}_{}'.format(feature, i + 1)])
+
+    train_file = Path('./EMD_{}/train_multiclass_hold_{}.pkl'.format(time_steps, hold_days))
+    with open(train_file, 'wb') as f:
+        pickle.dump(train_data, f, protocol=4)
+
+    # testing set
+    test_data = dict()
+    test_data['date'] = dates[train_size:-(hold_days-1)].values
+    test_data['y'] = np.zeros(test_size-(hold_days-1), dtype=int)
+    test_data['spread_long'] = ((_close - _open) - fee)[train_size:]
+    test_data['spread_short'] = ((_open - _close) - fee)[train_size:]
+
+    for i, act in enumerate(acts):
+        test_data['y'][act[train_size + time_steps:]] = i
+
+    for feature in features:
+        for i in range(max_imf+1):
+            test_data['{}_{}'.format(feature, i+1)] = list()
+
+        for i in range(test_size - (hold_days - 1)):
+            insuf = max_imf - load_data[feature][i + train_size - time_steps].shape[1] + 2
+            for j in range(insuf):
+                test_data['{}_{}'.format(feature, j+1)].append(np.zeros(time_steps))
+
+            residue = insuf+1
+            for c in load_data[feature][i + train_size - time_steps].columns[1:]:
+                test_data['{}_{}'.format(feature, residue)].append(load_data[feature][i + train_size - time_steps][c].values)
+                residue += 1
+
+        for i in range(max_imf+1):
+            test_data['{}_{}'.format(feature, i + 1)] = np.array(test_data['{}_{}'.format(feature, i + 1)])
+
+    test_file = Path('./EMD_{}/test_multiclass_hold_{}.pkl'.format(time_steps, hold_days))
+    with open(test_file, 'wb') as f:
+        pickle.dump(test_data, f, protocol=4)
+
+
 if __name__ == "__main__":
     '''
     How to read the traing set and the testing set?
@@ -170,8 +260,9 @@ if __name__ == "__main__":
     '''
 
     # compute and save emd result
-    to_emd()
+    # to_emd()
 
     # create training set and data set by day
-    create_dataset()
-    create_dataset_binary()
+    # create_dataset()
+    # create_dataset_binary()
+    create_dataset_multiclass()

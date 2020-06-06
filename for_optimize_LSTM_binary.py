@@ -8,10 +8,6 @@ from keras.optimizers import Adam
 from keras.regularizers import l2
 from keras.callbacks import ReduceLROnPlateau
 from lib.custom_callback import CustomCheckpoint
-from lib.attention_withcontext import AttentionWithContext
-from lib.attention2 import Attention
-from lib.attention3 import AttentionWeightedAverage
-from lib.attention import attention_3d_block
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score
 from pathlib import Path
@@ -44,7 +40,7 @@ class opt_binary_LSTM():
         self.test_date = self.test_X.pop('date', None)
         self.time_step = self.train_X.pop('time_step', None)
 
-    def train_test(self, bidirect=True, rec_layer=0, lstm_l2=1e-3/2, lstm_units=100, lstm_layer=1, lstm_dropout=0.0, lstm_recurrent_dropout=0.0, att=0,
+    def train_test(self, bidirect=True, rec_layer=0, lstm_l2=1e-3/2, lstm_units=100, lstm_layer=1, lstm_dropout=0.0, lstm_recurrent_dropout=0.0,
                    dense_l2=1e-3/2, dense_unit=32, dense_layer=1, dense_act_f=0, dense_drop=0.0, BatchNorm=True, batch_size=160, epochs=1000, save_model=False):
         '''
         model create
@@ -55,9 +51,9 @@ class opt_binary_LSTM():
         n_lstm = len(self.train_X.keys())
         lstm_reg = l2(lstm_l2)
         if (not self.denoise) and ('pure' not in self.wavelet):
-            n_lstm //= 6
+            n_lstm //= 5
         for _key in range(n_lstm):
-            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, 6))
+            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, 5))
             for _layer in range(lstm_layer - 1):
                 if bidirect:
                     x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg,
@@ -65,25 +61,10 @@ class opt_binary_LSTM():
                 else:
                     x = rec_layer(units=lstm_units, kernel_regularizer=lstm_reg, dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout, return_sequences=True)(x)
             # Apply a single dense layer to all timesteps of the resulting sequence to convert back to prices
-            if att == 0:
-                if bidirect:
-                    x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg, dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout))(x)
-                else:
-                    x = rec_layer(units=lstm_units, kernel_regularizer=lstm_reg, dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout)(x)
+            if bidirect:
+                x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg, dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout))(x)
             else:
-                if bidirect:
-                    x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg,
-                                                dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout, return_sequences=True))(x)
-                else:
-                    x = rec_layer(units=lstm_units, kernel_regularizer=lstm_reg,  dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout, return_sequences=True)(x)
-                if att == 1:
-                    x = AttentionWithContext()(x)
-                elif att == 2:
-                    x = Attention(self.time_step)(x)
-                elif att == 3:
-                    x = AttentionWeightedAverage()(x)
-                elif att == 4:
-                    x = attention_3d_block(x)
+                x = rec_layer(units=lstm_units, kernel_regularizer=lstm_reg, dropout=lstm_dropout, recurrent_dropout=lstm_recurrent_dropout)(x)
             m = Model(i, x)
             model_input += [m.input]
             model_output += [m.output]
@@ -114,7 +95,7 @@ class opt_binary_LSTM():
             inputTrain_X = [[v[1] for v in self.train_X.items() if str(i) in v[0]] for i in range(1, n_lstm + 1)]
             inputTest_X = [[v[1] for v in self.test_X.items() if str(i) in v[0]] for i in range(1, n_lstm + 1)]
             for i in range(len(inputTrain_X)):
-                for j in range(6):
+                for j in range(5):
                     inputTrain_X[i][j] = scaler_X.fit_transform(inputTrain_X[i][j])
                     inputTest_X[i][j] = scaler_X.transform(inputTest_X[i][j])
             inputTrain_X = np.moveaxis(inputTrain_X, 1, -1).tolist()
@@ -132,15 +113,19 @@ class opt_binary_LSTM():
         '''
         Downsample Majority Class To Match Minority Class
         '''
-        resample_size = len(np.where(inputTest_Y == 0)[0])-20
-        cls1_idx = np.random.choice(np.where(inputTest_Y == 1)[0], size=resample_size)
-        cls0_idx = np.random.choice(np.where(inputTest_Y == 0)[0], size=resample_size)
+        resample_size = 90
+        cls1_idx = len(inputTrain_Y) - 200 + np.random.choice(np.where(inputTrain_Y[-200:] == 1)[0], size=resample_size, replace=False)
+        cls0_idx = len(inputTrain_Y) - 200 + np.random.choice(np.where(inputTrain_Y[-200:] == 0)[0], size=resample_size, replace=False)
         down_idx = np.hstack((cls1_idx, cls0_idx))
         np.random.shuffle(down_idx)
         validTest_X = list()
-        for i in range(len(inputTest_X)):
-            validTest_X.append(np.array(inputTest_X[i])[down_idx])
-        validTest_Y = np.array(inputTest_Y)[down_idx]
+        for i in range(len(inputTrain_X)):
+            inputTrain_X[i] = np.array(inputTrain_X[i])
+            validTest_X.append(inputTrain_X[i][down_idx])
+            inputTrain_X[i] = np.delete(inputTrain_X[i], down_idx, 0)
+        inputTrain_Y = np.array(inputTrain_Y)
+        validTest_Y = inputTrain_Y[down_idx]
+        inputTrain_Y = np.delete(inputTrain_Y, down_idx, 0)
 
         '''
         model train
@@ -165,75 +150,66 @@ class opt_binary_LSTM():
         '''
         trend predict
         '''
-        if att == 1:
-            custom_objects = {'AttentionWithContext': AttentionWithContext}
-        elif att == 2:
-            custom_objects = {'Attention': Attention}
-        elif att == 3:
-            custom_objects = {'AttentionWeightedAverage': AttentionWeightedAverage}
-        else:
-            custom_objects = None
+        model = load_model(checkpoint_path)
+        # trainPredict = [0 if y <= 0.5 else 1 for y in model.predict(inputTrain_X).flatten()]
+        # validPredict = [0 if y <= 0.5 else 1 for y in model.predict(inputTest_X).flatten()]
 
-        model = load_model(checkpoint_path, custom_objects=custom_objects)
-        trainPredict = [0 if y <= 0.5 else 1 for y in model.predict(inputTrain_X).flatten()]
-        testPredict = [0 if y <= 0.5 else 1 for y in model.predict(inputTest_X).flatten()]
+        # '''
+        # accuracy estimate
+        # '''
+        # acc_in = sum(trainPredict == inputTrain_Y) / len(trainPredict)
+        # acc_out = sum(testPredict == inputTest_Y) / len(testPredict)
+        # print('[cuckoo] ----------> \tAcc_in: {:.8f} \tAcc_out: {:.8f}\n'.format(acc_in, acc_out))
 
-        '''
-        accuracy estimate
-        '''
-        acc_in = sum(trainPredict == inputTrain_Y) / len(trainPredict)
-        acc_out = sum(testPredict == inputTest_Y) / len(testPredict)
-        print('[cuckoo] ----------> \tAcc_in: {:.8f} \tAcc_out: {:.8f}\n'.format(acc_in, acc_out))
+        # '''
+        # plot loss curve & price curve
+        # '''
+        # plt.figure()
+        # epochs = hLS.epoch[-1]
+        # plt.plot(range(epochs), hLS.history['loss'][:epochs], color='blue', label='accuracy')
+        # plt.plot(range(epochs), hLS.history['val_loss'][:epochs], color='red', label='val_accuracy')
+        # plt.xlabel('epoch')
+        # plt.legend()
+        # if self.denoise:
+        #     plt.savefig(Path('losscurve/{:.3f}_for_opt_denoise_binary_{}.png'.format(acc_out, self.wavelet)))
+        # else:
+        #     plt.savefig(Path('losscurve/{:.3f}_for_opt_binary_{}.png'.format(acc_out, self.wavelet)))
 
-        '''
-        plot loss curve & price curve
-        '''
-        plt.figure()
-        epochs = hLS.epoch[-1]
-        plt.plot(range(epochs), hLS.history['loss'][:epochs], color='blue', label='accuracy')
-        plt.plot(range(epochs), hLS.history['val_loss'][:epochs], color='red', label='val_accuracy')
-        plt.xlabel('epoch')
-        plt.legend()
-        if self.denoise:
-            plt.savefig(Path('losscurve/{:.3f}_for_opt_denoise_binary_{}.png'.format(acc_out, self.wavelet)))
-        else:
-            plt.savefig(Path('losscurve/{:.3f}_for_opt_binary_{}.png'.format(acc_out, self.wavelet)))
+        # if self.plot:
+        #     real_date = np.concatenate((self.train_date, self.test_date), axis=0)
+        #     real_price = np.concatenate((self.train_Y, self.test_Y), axis=0)
+        #     plt.subplot(211)
+        #     plt.plot_date(real_date, real_price, '-', color='black', label='real')
+        #     plt.plot_date(self.train_date, trainPredict, '-', color='blue', label='predict(train)')
+        #     plt.plot_date(self.test_date, testPredict, '-', color='red', label='predict(test)')
+        #     plt.xlabel('days')
+        #     plt.ylabel('price')
+        #     plt.legend()
 
-        if self.plot:
-            real_date = np.concatenate((self.train_date, self.test_date), axis=0)
-            real_price = np.concatenate((self.train_Y, self.test_Y), axis=0)
-            plt.subplot(211)
-            plt.plot_date(real_date, real_price, '-', color='black', label='real')
-            plt.plot_date(self.train_date, trainPredict, '-', color='blue', label='predict(train)')
-            plt.plot_date(self.test_date, testPredict, '-', color='red', label='predict(test)')
-            plt.xlabel('days')
-            plt.ylabel('price')
-            plt.legend()
-
-            plt.subplot(212)
-            plt.plot_date(self.train_date, abs(self.train_Y - trainPredict), '-', color='blue', label='predict(train)')
-            plt.plot_date(self.test_date, abs(self.test_Y - testPredict), '-', color='red', label='predict(test)')
-            plt.xlabel('days')
-            plt.ylabel('bias')
-            plt.legend()
-            plt.show()
+        #     plt.subplot(212)
+        #     plt.plot_date(self.train_date, abs(self.train_Y - trainPredict), '-', color='blue', label='predict(train)')
+        #     plt.plot_date(self.test_date, abs(self.test_Y - testPredict), '-', color='red', label='predict(test)')
+        #     plt.xlabel('days')
+        #     plt.ylabel('bias')
+        #     plt.legend()
+        #     plt.show()
 
         '''
         save model
         '''
         save_dir = Path('./model/for_opt/{}'.format(self.wavelet))
         save_dir.mkdir(exist_ok=True)
-        save_file = save_dir / '{}.h5'.format(acc_out)
+        save_file = save_dir / '{}.h5'.format(get_best_model.best)
         if save_model:
             model.save(save_file)
 
         del model
         K.clear_session()
 
-        return acc_out
+        return get_best_model.best
 
 
 if __name__ == "__main__":
-    for w in ['haar_16']:
+    for w in ['haar_20']:
         lstm = opt_binary_LSTM(wavelet=w, plot=True)
         lstm.train_test()

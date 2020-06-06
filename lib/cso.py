@@ -61,6 +61,15 @@ class cso(sw):
         else:
             self.discrete = np.zeros(dimension, dtype=bool)
 
+        if minimize:
+            better = np.less
+            fcuckoos_rev = True
+            fnests_rev = False
+        else:
+            better = np.greater
+            fcuckoos_rev = False
+            fnests_rev = True
+
         self.__Nests = []
         self.__agents = np.random.uniform(lb, ub, (n, dimension))
         self.__nests = np.random.uniform(lb, ub, (nest, dimension))
@@ -80,11 +89,11 @@ class cso(sw):
         if minimize:
             save_log = Path('./log/price/{}'.format(wavelet))
         else:
-            save_log = Path('./log/binary/{}'.format(wavelet))
+            save_log = Path('./log/multiclass/{}'.format(wavelet))
         save_log.mkdir(exist_ok=True)
         save_log = save_log / 'Pbest_log.txt'
         with open(save_log, 'a+') as f:
-            f.write('fitness={}\ndenoise={}, lstm_units={}, lstm_act_f={},  lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, att={}, dense_unit={}, dense_layer={}, dense_act_f={}, dense_drop={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
+            f.write('fitness={}\nbidirect={}, rec_layer={}, lstm_l2={}, lstm_units={}, lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, att={}, dense_l2={}, dense_unit={}, dense_layer={}, dense_act_f={}, dense_drop={}, BatchNorm={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
 
         self._points(self.__agents)
 
@@ -94,14 +103,9 @@ class cso(sw):
 
             for i in range(n):
                 val = randint(0, nest - 1)
-                if minimize:
-                    if _agents_fitness[i] < _nests_fitness[val]:
-                        self.__nests[val] = self.__agents[i]
-                        _nests_fitness[val] = _agents_fitness[i]
-                else:
-                    if _agents_fitness[i] > _nests_fitness[val]:
-                        self.__nests[val] = self.__agents[i]
-                        _nests_fitness[val] = _agents_fitness[i]
+                if better(_agents_fitness[i], _nests_fitness[val]):
+                    self.__nests[val] = self.__agents[i]
+                    _nests_fitness[val] = _agents_fitness[i]
 
             # 一部分糟糕的巢被拋棄
             discovered = self.__empty_nests(pa, lb, ub, nest, dimension, Pbestidx)
@@ -115,12 +119,8 @@ class cso(sw):
 
             fcuckoos = [(_agents_fitness[i], i) for i in range(n)]
             fnests = [(_nests_fitness[i], i) for i in range(nest)]
-            if minimize:
-                fcuckoos.sort(reverse=True)
-                fnests.sort()
-            else:
-                fcuckoos.sort()
-                fnests.sort(reverse=True)
+            fcuckoos.sort(reverse=fcuckoos_rev)
+            fnests.sort(reverse=fnests_rev)
 
             if nest > n:
                 mworst = n
@@ -128,29 +128,19 @@ class cso(sw):
                 mworst = nest
 
             for i in range(mworst):
-                if minimize:
-                    if fnests[i][0] < fcuckoos[i][0]:
-                        self.__agents[fcuckoos[i][1]] = self.__nests[fnests[i][1]]
-                else:
-                    if fnests[i][0] > fcuckoos[i][0]:
-                        self.__agents[fcuckoos[i][1]] = self.__nests[fnests[i][1]]
+                if better(fnests[i][0], fcuckoos[i][0]):
+                    self.__agents[fcuckoos[i][1]] = self.__nests[fnests[i][1]]
 
             self.__Levyfly(Pbest, lb, ub, n, dimension)
             self._points(self.__agents)
             self.__nest()
             Pbestidx = _nests_fitness.argmin()
             Pbest = self.__nests[Pbestidx]
-            if minimize:
-                if _nests_fitness[Pbestidx] < Gbest_fittness:
-                    Gbest = Pbest
-                    Gbest_fittness = _nests_fitness[Pbestidx]
-            else:
-                if _nests_fitness[Pbestidx] > Gbest_fittness:
-                    Gbest = Pbest
-                    Gbest_fittness = _nests_fitness[Pbestidx]
-
+            if better(_nests_fitness[Pbestidx], Gbest_fittness):
+                Gbest = Pbest
+                Gbest_fittness = _nests_fitness[Pbestidx]
                 with open(save_log, 'a+') as f:
-                    f.write('fitness={}\ndenoise={}, lstm_units={}, lstm_act_f={},  lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, att={}, dense_unit={}, dense_layer={}, dense_act_f={}, dense_drop={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
+                    f.write('fitness={}\nbidirect={}, rec_layer={}, lstm_l2={}, lstm_units={}, lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, att={}, dense_l2={}, dense_unit={}, dense_layer={}, dense_act_f={}, dense_drop={}, BatchNorm={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
 
         self._set_Gbest(Gbest)
         self._set_best_fitness(Gbest_fittness)

@@ -96,7 +96,7 @@ class Load():
 
 
 if __name__ == "__main__":
-    model_name = 'attention_2_haar_64'
-    model = Load(model_path=Path('model/checkpoint/{}.h5'.format(model_name)), wavelet='haar_64')
+    model_name = '0.6118143459915611'
+    model = Load(model_path=Path('model/for_opt/coif3_16/{}.h5'.format(model_name)), wavelet='coif3_16')
     model.load_model()
     model.test()
