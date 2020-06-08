@@ -9,7 +9,7 @@ from keras.regularizers import l2
 from keras.callbacks import ReduceLROnPlateau
 from keras.utils import to_categorical
 from lib.custom_callback import CustomCheckpoint_multiclass
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score
 from pathlib import Path
 import pickle
@@ -18,8 +18,8 @@ from keras import backend as K
 
 def long_short_metric(y_true, y_pred):
     y_true, y_pred = K.argmax(y_true, axis=-1), K.argmax(y_pred, axis=-1)
-    mask1 = K.equal(y_true, K.constant(0, dtype=y_true.dtype))
-    mask2 = K.equal(y_true, K.constant(1, dtype=y_true.dtype))
+    mask1 = K.equal(y_true, K.constant(1, dtype=y_true.dtype))
+    mask2 = K.equal(y_true, K.constant(2, dtype=y_true.dtype))
     mask = tf.math.logical_or(mask1, mask2)
     y_true = tf.boolean_mask(y_true, mask)
     y_pred = tf.boolean_mask(y_pred, mask)
@@ -27,7 +27,7 @@ def long_short_metric(y_true, y_pred):
 
 
 class opt_multi_LSTM():
-    def __init__(self, denoise=None, wavelet='pure_20', hold=5, plot=True):
+    def __init__(self, denoise=None, wavelet='pure_16', hold=5, plot=True):
         self.wavelet = wavelet
         self.plot = plot
         self.hold = hold
@@ -57,7 +57,7 @@ class opt_multi_LSTM():
         self.test_spread_short = self.test_X.pop('spread_short', None)
 
     def train_test(self, bidirect=False, rec_layer=0, lstm_l2=1e-3, lstm_units=256, lstm_layer=2, lstm_dropout=0.25, lstm_recurrent_dropout=0,
-                   dense_l2=1e-3, dense_unit1=128, dense_unit2=0, dense_unit3=0, dense_act_f=0, dense_drop=0.25, BatchNorm=True, batch_size=160, epochs=2000, save_model=False):
+                   dense_l2=1e-3, dense_unit1=128, dense_unit2=64, dense_unit3=32, dense_act_f=0, dense_drop=0.25, BatchNorm=True, n_features=6, batch_size=160, epochs=1000, save_model=False):
         '''
         model create
         '''
@@ -67,9 +67,9 @@ class opt_multi_LSTM():
         n_lstm = len(self.train_X.keys())
         lstm_reg = l2(lstm_l2)
         if (not self.denoise) and ('pure' not in self.wavelet):
-            n_lstm //= 5
+            n_lstm //= n_features
         for _key in range(n_lstm):
-            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, 5))
+            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, n_features))
             for _layer in range(lstm_layer - 1):
                 if bidirect:
                     x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg,
@@ -110,12 +110,13 @@ class opt_multi_LSTM():
         '''
         input data create & normalization
         '''
-        scaler_X = MinMaxScaler(feature_range=(0, 1))
+        # scaler_X = MinMaxScaler(feature_range=(0, 1))
+        scaler_X = StandardScaler()
         if (not self.denoise) and ('pure' not in self.wavelet):
             inputTrain_X = [[v[1] for v in self.train_X.items() if str(i) in v[0]] for i in range(1, n_lstm + 1)]
             inputTest_X = [[v[1] for v in self.test_X.items() if str(i) in v[0]] for i in range(1, n_lstm + 1)]
             for i in range(len(inputTrain_X)):
-                for j in range(5):
+                for j in range(n_features):
                     inputTrain_X[i][j] = scaler_X.fit_transform(inputTrain_X[i][j])
                     inputTest_X[i][j] = scaler_X.transform(inputTest_X[i][j])
             inputTrain_X = np.moveaxis(inputTrain_X, 1, -1).tolist()
@@ -136,8 +137,6 @@ class opt_multi_LSTM():
         cls0_idx = len(self.train_Y) - 500 + np.random.choice(np.where(self.train_Y[-500:] == 0)[0], size=resample_size, replace=False)
         cls1_idx = len(self.train_Y) - 500 + np.random.choice(np.where(self.train_Y[-500:] == 1)[0], size=resample_size, replace=False)
         cls2_idx = len(self.train_Y) - 500 + np.random.choice(np.where(self.train_Y[-500:] == 2)[0], size=resample_size, replace=False)
-        # cls3_idx = len(self.train_Y) - 500 + np.random.choice(np.where(self.train_Y[-500:] == 3)[0], size=resample_size, replace=False)
-        # down_idx = np.hstack((cls0_idx, cls1_idx, cls2_idx, cls3_idx))
         down_idx = np.hstack((cls0_idx, cls1_idx, cls2_idx))
         np.random.shuffle(down_idx)
         validTest_X = list()
@@ -198,9 +197,9 @@ class opt_multi_LSTM():
         '''
         return rate estimate
         '''
-        rr_in = sum(((trainPredict == 0) * train_spread_long) + (-1 * (trainPredict == 1) * train_spread_short))
-        rr_val = sum(((validPredict == 0) * valid_spread_long) + (-1 * (validPredict == 1) * valid_spread_short))
-        rr_out = sum(((testPredict == 0) * self.test_spread_long) + (-1 * (testPredict == 1) * self.test_spread_short))
+        rr_in = sum(((trainPredict == 1) * train_spread_long) + ((trainPredict == 2) * train_spread_short))
+        rr_val = sum(((validPredict == 1) * valid_spread_long) + ((validPredict == 2) * valid_spread_short))
+        rr_out = sum(((testPredict == 1) * self.test_spread_long) + ((testPredict == 2) * self.test_spread_short))
         print('[cuckoo] ----------> \trr_in: {:.8f} \trr_val: {:.8f} \trr_out: {:.8f}\n'.format(rr_in, rr_val, rr_out))
 
         '''
@@ -239,6 +238,6 @@ class opt_multi_LSTM():
 
 
 if __name__ == "__main__":
-    for w in ['haar_20']:
+    for w in ['pure_16']:
         lstm = opt_multi_LSTM(wavelet=w, plot=True)
         lstm.train_test()

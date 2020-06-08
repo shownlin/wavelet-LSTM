@@ -7,7 +7,7 @@ origin_dir = Path('./OriginData')
 orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
-features = ['adj_open', 'adj_high', 'adj_low', 'adj_close', 'volume']
+features = ['adj_open', 'adj_high', 'adj_low', 'adj_close', 'volume', 'buy_sell']
 time_steps = 16
 test_size = 250
 train_size = df.shape[0] - test_size
@@ -89,7 +89,7 @@ def create_dataset_binary():
         pickle.dump(test_data, f)
 
 
-def create_dataset_multiclass():
+def create_dataset_multiclass(hold_days=5):
     '''
     How to read the traing set and the testing set?
     with open('./{}_{}/train.pkl'.format(wavelet, time_steps), 'rb') as f:
@@ -104,46 +104,52 @@ def create_dataset_multiclass():
             3 -> nop_down 不動作，但股票跌
     '''
 
-    _open, _close = df['adj_open'].values, df['adj_close'].values
+    _open, _close = df['adj_open'].values[: - (hold_days - 1)], np.roll(df['adj_close'].values, -(hold_days - 1))[: - (hold_days - 1)]
     fee = (_open * 1.425 * 1e-3 + _close * 4.425 * 1e-3)
     long = (_close - _open) - fee > 0
     short = (_open - _close) - fee > 0
-    nop_up = ~(long | short) & (_close > _open)
-    nop_down = ~(long | short) & (_open > _close)
-    acts = [long, short, nop_up, nop_down]
+    # nop_up = ~(long | short) & (_close > _open)
+    # nop_down = ~(long | short) & (_open > _close)
+    # acts = [long, short, nop_up, nop_down]
+    nop = ~(long | short)
+    acts = [long, short, nop]
 
     # training set
     train_data = dict()
     train_data['time_step'] = time_steps
-    train_data['date'] = dates[time_steps:train_size + time_steps].values
-    train_data['y'] = np.zeros(train_size, dtype=int)
+    train_data['date'] = dates[time_steps:train_size].values
+    train_data['y'] = np.zeros(train_size - time_steps, dtype=int)
+    train_data['spread_long'] = ((_close - _open) - fee)[time_steps:train_size]
+    train_data['spread_short'] = ((_open - _close) - fee)[time_steps:train_size]
 
     for i, act in enumerate(acts):
-        train_data['y'][act[time_steps:train_size + time_steps]] = i
+        train_data['y'][act[time_steps:train_size]] = i
 
     for feature in features:
         train_data[feature] = list()
-        for i in range(train_size):
+        for i in range(train_size - time_steps):
             train_data[feature] .append(df[feature][i:i+time_steps].values)
 
-    train_file = Path('./pure_{}/train_multiclass.pkl'.format(time_steps))
+    train_file = Path('./pure_{}/train_multiclass_hold_{}.pkl'.format(time_steps, hold_days))
     with open(train_file, 'wb') as f:
         pickle.dump(train_data, f)
 
     # testing set
     test_data = dict()
-    test_data['date'] = dates[train_size + time_steps:].values
-    test_data['y'] = np.zeros(test_size, dtype=int)
+    test_data['date'] = dates[train_size:-(hold_days-1)].values
+    test_data['y'] = np.zeros(test_size-(hold_days-1), dtype=int)
+    test_data['spread_long'] = ((_close - _open) - fee)[train_size:]
+    test_data['spread_short'] = ((_open - _close) - fee)[train_size:]
 
     for i, act in enumerate(acts):
-        test_data['y'][act[train_size + time_steps:]] = i
+        test_data['y'][act[train_size:]] = i
 
     for feature in features:
         test_data[feature] = list()
-        for i in range(train_size, train_size + test_size):
-            test_data[feature].append(df[feature][i:i + time_steps].values)
+        for i in range(test_size - (hold_days - 1)):
+            test_data[feature].append(df[feature][i - time_steps + train_size: i + train_size].values)
 
-    test_file = Path('./pure_{}/test_multiclass.pkl'.format(time_steps))
+    test_file = Path('./pure_{}/test_multiclass_hold_{}.pkl'.format(time_steps, hold_days))
     with open(test_file, 'wb') as f:
         pickle.dump(test_data, f)
 

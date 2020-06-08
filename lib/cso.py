@@ -93,7 +93,7 @@ class cso(sw):
         save_log.mkdir(exist_ok=True)
         save_log = save_log / 'Pbest_log.txt'
         with open(save_log, 'a+') as f:
-            f.write('fitness={}\nbidirect={}, rec_layer={}, lstm_l2={}, lstm_units={}, lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, att={}, dense_l2={}, dense_unit={}, dense_layer={}, dense_act_f={}, dense_drop={}, BatchNorm={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
+            f.write('fitness={}\nbidirect={}, rec_layer={}, lstm_l2={}, lstm_units={}, lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, dense_l2={}, dense_unit1={}, dense_unit2={}, dense_unit3={}, dense_act_f={}, dense_drop={}, BatchNorm={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
 
         self._points(self.__agents)
 
@@ -140,7 +140,7 @@ class cso(sw):
                 Gbest = Pbest
                 Gbest_fittness = _nests_fitness[Pbestidx]
                 with open(save_log, 'a+') as f:
-                    f.write('fitness={}\nbidirect={}, rec_layer={}, lstm_l2={}, lstm_units={}, lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, att={}, dense_l2={}, dense_unit={}, dense_layer={}, dense_act_f={}, dense_drop={}, BatchNorm={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
+                    f.write('fitness={}\nbidirect={}, rec_layer={}, lstm_l2={}, lstm_units={}, lstm_layer={}, lstm_dropout={}, lstm_recurrent_dropout={}, dense_l2={}, dense_unit1={}, dense_unit2={}, dense_unit3={}, dense_act_f={}, dense_drop={}, BatchNorm={}, batch_size={}\n\n'.format(Gbest_fittness, *Gbest))
 
         self._set_Gbest(Gbest)
         self._set_best_fitness(Gbest_fittness)

@@ -132,7 +132,7 @@ class CustomCheckpoint_multiclass(Callback):
                 else:
                     self.model.save(filepath, overwrite=True)
                     self.valid = True
-        if np.equal(epoch, 200) and np.less(train_metric_mean, 0.5):
+        if np.equal(epoch, 200) and np.less(val_acc_mean, 0.37):
             self.model.stop_training = True
             print('Early Stop at %d' % epoch)
         elif np.equal(epoch, 250) and np.less(self.stop_criti, 0.5375):
@@ -141,10 +141,10 @@ class CustomCheckpoint_multiclass(Callback):
         elif np.equal(epoch, 500) and not self.valid:
             self.model.stop_training = True
             print('Early Stop at %d' % epoch)
-        elif np.greater(epoch, 500) and np.greater(train_acc_mean - self.best, 0.3):
+        elif np.greater(epoch, 300) and np.greater(train_acc_mean - self.best, 0.3):
             self.model.stop_training = True
             print('Early finish at %d' % epoch)
-        elif np.greater(train_acc_mean, 0.7) and np.greater(self.best, 0.55):
+        elif np.greater(train_acc_mean, 0.8) and np.greater(self.best, 0.6):
             self.model.stop_training = True
             print('Early finish at %d' % epoch)
 

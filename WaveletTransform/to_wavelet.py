@@ -8,7 +8,7 @@ origin_dir = Path('./OriginData')
 orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
-features = ['adj_open', 'adj_high', 'adj_low', 'adj_close', 'volume']
+features = ['adj_open', 'adj_high', 'adj_low', 'adj_close', 'volume', 'buy_sell']
 test_size = 250
 train_size = df.shape[0] - test_size
 time_steps = 16
@@ -237,16 +237,15 @@ def create_dataset_denoise_binary():
 def create_dataset_multiclass(hold_days=5):
     '''
         lebel:
-            0 -> long 做多
-            1 -> short 做空
-            2 -> nop_up 不動作，但股票漲
-            3 -> nop_down 不動作，但股票跌
+            0 -> nop_up 不動作，但股票漲
+            1 -> long 做多
+            2 -> short 做空
 
         return rate:
             spread[i] = open[i] - close[i + hold_days]
     '''
 
-    _open, _close = df['open'].values[: - (hold_days - 1)], np.roll(df['close'].values, -(hold_days - 1))[: - (hold_days - 1)]
+    _open, _close = df['adj_open'].values[: - (hold_days - 1)], np.roll(df['adj_close'].values, -(hold_days - 1))[: - (hold_days - 1)]
     fee = (_open * 1.425 * 1e-3 + _close * 4.425 * 1e-3)
     long = (_close - _open) - fee > 0
     short = (_open - _close) - fee > 0
@@ -254,7 +253,7 @@ def create_dataset_multiclass(hold_days=5):
     # nop_down = ~(long | short) & (_open > _close)
     # acts = [long, short, nop_up, nop_down]
     nop = ~(long | short)
-    acts = [long, short, nop]
+    acts = [nop, long, short]
 
     load_data = dict()
     for feature in features:
@@ -343,6 +342,6 @@ if __name__ == "__main__":
         # create training set and data set by day
         # create_dataset()
         # create_dataset_denoise()
-        create_dataset_binary()
+        # create_dataset_binary()
         # create_dataset_denoise_binary()
-        # create_dataset_multiclass()
+        create_dataset_multiclass()

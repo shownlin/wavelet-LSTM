@@ -8,11 +8,11 @@ origin_dir = Path('./OriginData')
 orgin_file = origin_dir / 'TX_price.csv'
 df = pd.read_csv(orgin_file, parse_dates=['date'], infer_datetime_format=True)
 dates = df['date']
-features = ['open', 'high', 'low', 'close', 'volume', 'adj_close']
-time_steps = 20
+features = ['adj_open', 'adj_high', 'adj_low', 'adj_close', 'volume', 'buy_sell']
+time_steps = 16
 test_size = 250
 train_size = df.shape[0] - test_size
-max_imf = 2
+max_imf = 3
 
 
 def to_emd():
@@ -21,10 +21,38 @@ def to_emd():
     with open('./EMD/open_imf_list.pkl', 'rb') as f:
         data = pickle.load(f)
     '''
+
+    skip = list()
     for feature in features:
         save_file = Path('./EMD_{}/{}_imf_list.pkl'.format(time_steps, feature))
         result = list()
         for i in range(df.shape[0] - time_steps):
+            if i in skip:
+                continue
+            cur_time = dates[i:i+time_steps].copy().reset_index(drop=True)
+            emd = EMD()
+            emd.emd(df[feature][i:i+time_steps].values, max_imf=max_imf)
+            try:
+                imfs, residue = emd.get_imfs_and_residue()
+                if (max(residue) == 0) & (min(residue) == 0):
+                    imfs = np.roll(imfs, 1, axis=0)
+                    residue = imfs[0].copy()
+                imfs[0] = np.zeros(imfs.shape[1])
+                columns = ['{}_IMF{}'.format(feature, i) for i in range(1, imfs.shape[0] + 1)]
+                result += [pd.concat([cur_time, pd.DataFrame(imfs.T, columns=columns), pd.DataFrame(residue, columns=['{}_res'.format(feature)])], axis=1)]
+            except:
+                skip.append(i)
+
+    save_file = Path('./EMD_{}/skip_list.pkl'.format(time_steps))
+    with open(save_file, 'wb') as f:
+        pickle.dump(skip, f)
+
+    for feature in features:
+        save_file = Path('./EMD_{}/{}_imf_list.pkl'.format(time_steps, feature))
+        result = list()
+        for i in range(df.shape[0] - time_steps):
+            if i in skip:
+                continue
             cur_time = dates[i:i+time_steps].copy().reset_index(drop=True)
             emd = EMD()
             emd.emd(df[feature][i:i+time_steps].values, max_imf=max_imf)
@@ -32,9 +60,9 @@ def to_emd():
             if (max(residue) == 0) & (min(residue) == 0):
                 imfs = np.roll(imfs, 1, axis=0)
                 residue = imfs[0].copy()
-                imfs[0] = np.zeros(imfs.shape[1])
+            imfs[0] = np.zeros(imfs.shape[1])
             columns = ['{}_IMF{}'.format(feature, i) for i in range(1, imfs.shape[0] + 1)]
-            result += [pd.concat([cur_time, pd.DataFrame(imfs.T, columns=columns),  pd.DataFrame(residue, columns=['{}_res'.format(feature)])], axis=1)]
+            result += [pd.concat([cur_time, pd.DataFrame(imfs.T, columns=columns), pd.DataFrame(residue, columns=['{}_res'.format(feature)])], axis=1)]
 
         with open(save_file, 'wb') as f:
             pickle.dump(result, f)
@@ -108,16 +136,19 @@ def create_dataset_binary():
         with open(read_file, 'rb') as f:
             load_data[feature] = pickle.load(f)
 
+    labels = np.sign(np.diff(df['adj_close'].values)).astype(int)
+    train_size = len(load_data['adj_close']) - test_size
+
     # training set
     train_data = dict()
     train_data['time_step'] = time_steps
-    train_data['date'] = dates[time_steps:train_size + time_steps].values
-    train_data['y'] = np.sign(np.diff(df['close'][time_steps-1:train_size + time_steps].values)).astype(int)
+    train_data['date'] = dates[time_steps:train_size].values
+    train_data['y'] = labels[time_steps-1:train_size-1]
     for feature in features:
         for i in range(max_imf+1):
             train_data['{}_{}'.format(feature, i+1)] = list()
 
-        for i in range(train_size):
+        for i in range(train_size - time_steps):
             insuf = max_imf - load_data[feature][i].shape[1] + 2
             for j in range(insuf):
                 train_data['{}_{}'.format(feature, j+1)].append(np.zeros(time_steps))
@@ -136,20 +167,20 @@ def create_dataset_binary():
 
     # testing set
     test_data = dict()
-    test_data['date'] = dates[train_size + time_steps:].values
-    test_data['y'] = np.sign(np.diff(df['close'][train_size-1 + time_steps:].values)).astype(int)
+    test_data['date'] = dates[train_size:].values
+    test_data['y'] = labels[train_size-1:]
     for feature in features:
         for i in range(max_imf+1):
             test_data['{}_{}'.format(feature, i+1)] = list()
 
         for i in range(test_size):
-            insuf = max_imf - load_data[feature][i + train_size].shape[1] + 2
+            insuf = max_imf - load_data[feature][i + train_size - time_steps].shape[1] + 2
             for j in range(insuf):
                 test_data['{}_{}'.format(feature, j+1)].append(np.zeros(time_steps))
 
             residue = insuf+1
-            for c in load_data[feature][i + train_size].columns[1:]:
-                test_data['{}_{}'.format(feature, residue)].append(load_data[feature][i + train_size][c].values)
+            for c in load_data[feature][i + train_size - time_steps].columns[1:]:
+                test_data['{}_{}'.format(feature, residue)].append(load_data[feature][i + train_size - time_steps][c].values)
                 residue += 1
 
         for i in range(max_imf+1):
@@ -163,22 +194,21 @@ def create_dataset_binary():
 def create_dataset_multiclass(hold_days=5):
     '''
         lebel:
-            0 -> long 做多
-            1 -> short 做空
-            2 -> nop_up 不動作，但股票漲
-            3 -> nop_down 不動作，但股票跌
+            0 -> nop_up 不動作，但股票漲
+            1 -> long 做多
+            2 -> short 做空
+
 
         return rate:
             spread[i] = open[i] - close[i + hold_days]
     '''
 
-    _open, _close = df['open'].values[:-(hold_days-1)], np.roll(df['close'].values, -(hold_days-1))[:-(hold_days-1)]
+    _open, _close = df['adj_open'].values[: -(hold_days-1)], np.roll(df['adj_close'].values, -(hold_days-1))[: -(hold_days-1)]
     fee = (_open * 1.425 * 1e-3 + _close * 4.425 * 1e-3)
     long = (_close - _open) - fee > 0
     short = (_open - _close) - fee > 0
-    nop_up = ~(long | short) & (_close > _open)
-    nop_down = ~(long | short) & (_open > _close)
-    acts = [long, short, nop_up, nop_down]
+    nop = ~(long | short)
+    acts = [nop, long, short]
 
     load_data = dict()
     for feature in features:
@@ -186,13 +216,18 @@ def create_dataset_multiclass(hold_days=5):
         with open(read_file, 'rb') as f:
             load_data[feature] = pickle.load(f)
 
+    with open(Path('./EMD_{}/skip_list.pkl'.format(time_steps)), 'rb') as f:
+        skip = pickle.load(f)
+    train_size = len(load_data['adj_close']) - len(skip) - test_size + time_steps
+    acts = np.delete(acts, skip, 0)
+
     # training set
     train_data = dict()
     train_data['time_step'] = time_steps
-    train_data['date'] = dates[time_steps:train_size].values
+    train_data['date'] = np.delete(dates[time_steps: train_size].values, skip, 0)
     train_data['y'] = np.zeros(train_size - time_steps, dtype=int)
-    train_data['spread_long'] = ((_close - _open) - fee)[time_steps:train_size]
-    train_data['spread_short'] = ((_open - _close) - fee)[time_steps:train_size]
+    train_data['spread_long'] = ((_close - _open) - fee)[time_steps: train_size]
+    train_data['spread_short'] = ((_open - _close) - fee)[time_steps: train_size]
 
     for i, act in enumerate(acts):
         train_data['y'][act[time_steps:train_size]] = i
@@ -226,7 +261,7 @@ def create_dataset_multiclass(hold_days=5):
     test_data['spread_short'] = ((_open - _close) - fee)[train_size:]
 
     for i, act in enumerate(acts):
-        test_data['y'][act[train_size + time_steps:]] = i
+        test_data['y'][act[train_size:]] = i
 
     for feature in features:
         for i in range(max_imf+1):

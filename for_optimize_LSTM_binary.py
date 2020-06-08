@@ -41,7 +41,7 @@ class opt_binary_LSTM():
         self.time_step = self.train_X.pop('time_step', None)
 
     def train_test(self, bidirect=True, rec_layer=0, lstm_l2=1e-3/2, lstm_units=100, lstm_layer=1, lstm_dropout=0.0, lstm_recurrent_dropout=0.0,
-                   dense_l2=1e-3/2, dense_unit=32, dense_layer=1, dense_act_f=0, dense_drop=0.0, BatchNorm=True, batch_size=160, epochs=1000, save_model=False):
+                   dense_l2=1e-3/2, dense_unit=32, dense_layer=1, dense_act_f=0, dense_drop=0.0, BatchNorm=True, n_features=6, batch_size=160, epochs=1000, save_model=False):
         '''
         model create
         '''
@@ -51,9 +51,9 @@ class opt_binary_LSTM():
         n_lstm = len(self.train_X.keys())
         lstm_reg = l2(lstm_l2)
         if (not self.denoise) and ('pure' not in self.wavelet):
-            n_lstm //= 5
+            n_lstm //= n_features
         for _key in range(n_lstm):
-            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, 5))
+            x = i = Input(shape=(self.time_step, 1)) if self.denoise or ('pure' in self.wavelet) else Input(shape=(self.time_step, n_features))
             for _layer in range(lstm_layer - 1):
                 if bidirect:
                     x = Bidirectional(rec_layer(units=lstm_units, kernel_regularizer=lstm_reg,
@@ -95,7 +95,7 @@ class opt_binary_LSTM():
             inputTrain_X = [[v[1] for v in self.train_X.items() if str(i) in v[0]] for i in range(1, n_lstm + 1)]
             inputTest_X = [[v[1] for v in self.test_X.items() if str(i) in v[0]] for i in range(1, n_lstm + 1)]
             for i in range(len(inputTrain_X)):
-                for j in range(5):
+                for j in range(n_features):
                     inputTrain_X[i][j] = scaler_X.fit_transform(inputTrain_X[i][j])
                     inputTest_X[i][j] = scaler_X.transform(inputTest_X[i][j])
             inputTrain_X = np.moveaxis(inputTrain_X, 1, -1).tolist()
@@ -210,6 +210,6 @@ class opt_binary_LSTM():
 
 
 if __name__ == "__main__":
-    for w in ['haar_20']:
+    for w in ['pure_16']:
         lstm = opt_binary_LSTM(wavelet=w, plot=True)
         lstm.train_test()
